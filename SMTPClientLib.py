@@ -22,6 +22,8 @@ class Module (Thread):
         events = selectors.EVENT_READ | selectors.EVENT_WRITE
         self._selector.register(self._sock, events, data=None)
 
+        self.stage = 0
+
     def run(self):
             try:
                 while True:
@@ -48,6 +50,7 @@ class Module (Thread):
     def _read(self):
         try:
             data = self._sock.recv(4096)
+            print("DATA READ")
         except BlockingIOError:
             # Resource temporarily unavailable (errno EWOULDBLOCK)
             pass
@@ -58,6 +61,7 @@ class Module (Thread):
                 raise RuntimeError("Peer closed.")
 
         self._process_response()
+        self.accepted_connection()
 
     def _write(self):
         try:
@@ -83,6 +87,18 @@ class Module (Thread):
         header_length = 3
         if len(message) >= header_length:
             print(message[0:header_length ], message[header_length :])
+        if message[0:header_length] == "220" and self.stage == 0:
+            self.stage = 1
+        elif message[0:header_length] == "250" and self.stage == 1:
+            self.stage = 2
+        elif message[0:header_length] == "250" and self.stage == 2:
+            self.stage = 3
+        elif message[0:header_length] == "250" and self.stage == 3:
+            self.stage = 4
+        elif message[0:header_length] == "354" and self.stage == 4:
+            self.stage = 5
+        elif message[0:header_length] == "221" and self.stage == 5:
+            self.stage = 6
         print("Processing thing")
 
     def close(self):
@@ -105,4 +121,19 @@ class Module (Thread):
             # Delete reference to socket object for garbage collection
             self._sock = None
 
-
+    def setup_info(self,address):
+        self._email = address
+    def accepted_connection(self):
+        print(self.stage)
+        if self.stage == 1:
+            print("received 220")
+            self.create_message("HELO email@server.com")
+        if self.stage == 2:
+            self.create_message("MAIL email2@otherserver.co.uk")
+        if self.stage == 3:
+            self.create_message("RCPT email@server.com")
+        if self.stage == 4:
+            self.create_message("DATA This is an email")
+        if self.stage == 5:
+            self.create_message("QUIT")
+            print("QUIT")

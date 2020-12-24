@@ -42,7 +42,6 @@ class NWSThreadedServer ():
         self._modules.append(module)
         module.start()
 
-
     def run(self):
         self._configureServer()
 

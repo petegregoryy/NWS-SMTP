@@ -19,7 +19,7 @@ class Module(Thread):
 
         events = selectors.EVENT_READ | selectors.EVENT_WRITE
         self._selector.register(self._sock, events, data=None)
-
+        self._create_message("220 OK")
     def run(self):
         try:
             while True:
@@ -49,6 +49,9 @@ class Module(Thread):
         except BlockingIOError:
             print("blocked")
             # Resource temporarily unavailable (errno EWOULDBLOCK)
+            pass
+        except ConnectionResetError:
+            print("Connection closed by Peer")
             pass
         else:
             if data:
@@ -91,7 +94,7 @@ class Module(Thread):
             self._create_message(f"250 This is a help message: {message}")
             print("Received a HELP")
         elif command == "DATA":
-            self._create_message(f"250 Data: {message}")
+            self._create_message(f"354 Data: {message}")
             print("Received a DATA")
         elif command == "HELO":
             self._create_message(f"250 Hello: {message}")
@@ -112,7 +115,7 @@ class Module(Thread):
             self._create_message(f"250 Reset: {message}")
             print("Received a RSET")
         elif command == "QUIT":
-            self._create_message(f"250 Quit: {message}")
+            self._create_message(f"221 Quit: {message}")
             print("Received a QUIT")
 
         else:
