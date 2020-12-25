@@ -22,8 +22,8 @@ class Module (Thread):
         events = selectors.EVENT_READ | selectors.EVENT_WRITE
         self._selector.register(self._sock, events, data=None)
 
-        self.stage = 0
-
+        self.stage = "START"
+        self.step = 0
     def run(self):
             try:
                 while True:
@@ -87,18 +87,24 @@ class Module (Thread):
         header_length = 3
         if len(message) >= header_length:
             print(message[0:header_length ], message[header_length :])
-        if message[0:header_length] == "220" and self.stage == 0:
-            self.stage = 1
-        elif message[0:header_length] == "250" and self.stage == 1:
-            self.stage = 2
-        elif message[0:header_length] == "250" and self.stage == 2:
-            self.stage = 3
-        elif message[0:header_length] == "250" and self.stage == 3:
-            self.stage = 4
-        elif message[0:header_length] == "354" and self.stage == 4:
-            self.stage = 5
-        elif message[0:header_length] == "221" and self.stage == 5:
-            self.stage = 6
+
+        if message[0:header_length] == "220" and self.stage == "START":
+            self.step = 1
+        elif message[0:header_length] == "250" and self.step == 1:
+            self.stage = "MAILPROCESS"
+            self.step = 2
+        elif message[0:header_length] == "250" and self.step == 2 and self.stage == "MAILPROCESS":
+            self.step = 3
+        elif message[0:header_length] == "250" and self.step == 3:
+            self.step = 4
+        elif message[0:header_length] == "354" and self.step == 4:
+            self.step = 5
+            self.stage = "DATASTATE"
+        elif message[0:header_length] == "250" and self.step == 5 and self.stage == "DATASTATE":
+            self.step = 6
+        elif message[0:header_length] == "221" and self.step == 6:
+            self.step = 7
+
         print("Processing thing")
 
     def close(self):
@@ -123,17 +129,22 @@ class Module (Thread):
 
     def setup_info(self,address):
         self._email = address
+
     def accepted_connection(self):
         print(self.stage)
-        if self.stage == 1:
+        print(self.step)
+        if self.step == 1 and self.stage == "START":
             print("received 220")
             self.create_message("HELO email@server.com")
-        if self.stage == 2:
+        if self.step == 2 and self.stage == "MAILPROCESS":
             self.create_message("MAIL email2@otherserver.co.uk")
-        if self.stage == 3:
+        if self.step == 3:
             self.create_message("RCPT email@server.com")
-        if self.stage == 4:
-            self.create_message("DATA This is an email")
-        if self.stage == 5:
-            self.create_message("QUIT")
+        if self.step == 4:
+            self.create_message("DATA Start Data")
+        if self.step == 5:
+            self.create_message("the email message is this")
+            self.create_message("<crlf>.<crlf>")
+        if self.step == 6:
+            self.create_message("QUIT byebye")
             print("QUIT")
