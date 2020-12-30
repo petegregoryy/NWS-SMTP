@@ -25,19 +25,23 @@ class Module(Thread):
         try:
             self._create_message("220 OK")
             while True:
+
                 events = self._selector.select(timeout=None)
                 for key, mask in events:
                     try:
                         if mask & selectors.EVENT_READ:
-                            self._read()
+                            if self._sock != None:
+                                self._read()
                         if mask & selectors.EVENT_WRITE and not self._outgoing_buffer.empty():
-                            self._write()
+                            if self._sock != None:
+                                self._write()
                     except Exception:
                         print(
                             "main: error: exception for",
                             f"{self._addr}:\n{traceback.format_exc()}",
                         )
-                        self._sock.close()
+                        if self._sock != None:
+                            self._sock.close()
                 if not self._selector.get_map():
                     break
         except KeyboardInterrupt:
