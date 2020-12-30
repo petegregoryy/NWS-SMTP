@@ -55,9 +55,9 @@ class NWSThreadedClient ():
     def run(self):
         self.start_connection(self._host, self._port)
 
-        while True:
-            useraction = input("Enter a string")
-            self._module.create_message(useraction)
+        #while True:
+         #   useraction = input("Enter a string")
+          #  self._module.create_message(useraction)
 
 
 if __name__ == "__main__":

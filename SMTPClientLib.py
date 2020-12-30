@@ -25,6 +25,8 @@ class Module (Thread):
         self.stage = "START"
         self.step = 0
         self.client_data = open("clientData.txt", "r")
+        self.mode = 0
+
     def run(self):
             try:
                 while True:
@@ -91,6 +93,7 @@ class Module (Thread):
 
         if message[0:header_length] == "220" and self.stage == "START":
             self.step = 1
+            print("received 220")
         elif message[0:header_length] == "250" and self.step == 1:
             self.stage = "MAILPROCESS"
             self.step = 2
@@ -132,11 +135,29 @@ class Module (Thread):
         self._email = address
 
     def accepted_connection(self):
+
+        data_lines = self.client_data.readlines()
+        print(data_lines[0])
+        if self.step == 1 and self.stage == "START":
+            m = "HELO " + data_lines[0]
+            print(m)
+            self.create_message(m)
+
+        if self.mode == 0:
+            print("What would you like to do? \n [1] Compose email \n")
+
+            entry = input("> ")
+            if entry == "1":
+                self.mode = 1
+                self.accepted_connection()
+        elif self.mode == 1:
+            self.compose()
+
+    def compose(self):
         print(self.stage)
         print(self.step)
-        if self.step == 1 and self.stage == "START":
-            print("received 220")
-            self.create_message("HELO email@server.com")
+
+
         if self.step == 2 and self.stage == "MAILPROCESS":
             self.create_message("MAIL email2@otherserver.co.uk")
         if self.step == 3:
