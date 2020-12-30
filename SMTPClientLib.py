@@ -24,6 +24,7 @@ class Module (Thread):
 
         self.stage = "START"
         self.step = 0
+        self.client_data = open("clientData.txt", "r")
     def run(self):
             try:
                 while True:
@@ -144,7 +145,7 @@ class Module (Thread):
             self.create_message("DATA Start Data")
         if self.step == 5:
             self.create_message("the email message is this")
-            self.create_message("<crlf>.<crlf>")
+            self.create_message(".")
         if self.step == 6:
             self.create_message("QUIT byebye")
             print("QUIT")

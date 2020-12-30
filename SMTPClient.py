@@ -20,6 +20,26 @@ class NWSThreadedClient ():
         self._selector = selectors.DefaultSelector()
 
         self._module = None
+        self.needs_setup = False
+
+        try:
+            f = open("clientData.txt","r")
+
+            if f.readlines() == "":
+                self.needs_setup = True
+                f.close()
+
+        except FileNotFoundError:
+            f = open("clientData.txt","w+")
+            self.needs_setup = True
+            f.close()
+
+
+
+        if self.needs_setup:
+            f = open("clientData.txt", "w+")
+            mail = input("Enter your mail address: ")
+            f.write(mail)
 
     def start_connection(self, host, port):
         addr = (host, port)

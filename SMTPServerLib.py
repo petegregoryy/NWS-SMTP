@@ -21,6 +21,9 @@ class Module(Thread):
         events = selectors.EVENT_READ | selectors.EVENT_WRITE
         self._selector.register(self._sock, events, data=None)
 
+        self._data_file = open("serverData.txt","w+")
+        self._helo_result = ""
+
     def run(self):
         try:
             self._create_message("220 OK")
@@ -89,8 +92,11 @@ class Module(Thread):
     def _process_response(self):
         message = self._incoming_buffer.get()
         header_length = 4
-        if len(message) >= header_length:
-            self._module_processor(message[0:header_length], message[header_length:])
+        if self.state != "DATASTATE":
+            if len(message) >= header_length:
+                self._module_processor(message[0:header_length], message[header_length:])
+        else:
+            self._module_processor(message[0:1], message[1:])
 
     def _module_processor(self, command, message):
         print(self.state)
@@ -111,16 +117,9 @@ class Module(Thread):
                 valid = True
 
         elif self.state == "DATASTATE":
-            if crlf_received:
-                if command == "QUIT":
-                    self.state = "CLEANING"
-                    valid = True
-                else:
-                    print("End of data input")
-                    data_input = False
-            else:
-                valid = False
-                data_input = True
+            valid = False
+            data_input = True
+
 
         if self.state == "CLEANING":
             if command != "QUIT":
@@ -130,13 +129,15 @@ class Module(Thread):
                 valid = True
 
         if data_input:
-            if command == "<crl" and message == "f>.<crlf>":
+            if command == ".":
                 print("CLEARCLEAR")
                 self._create_message("250 OK")
                 self.state = "CLEANING"
                 data_input = False
                 crlf_received = True
             else:
+                line = command+message
+                print(line)
                 data_input = True
                 crlf_received = False
 
@@ -155,6 +156,10 @@ class Module(Thread):
             elif command == "HELO":
                 self._create_message(f"250 Hello: {message}")
                 print("Received a HELO")
+
+                if message != "":
+                    self._data_file.write(message)
+                    print("wrote to file ",message)
                 if self.state == "START":
                     self.state = "MAILPROCESS"
             elif command == "MAIL":
