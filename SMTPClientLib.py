@@ -2,8 +2,8 @@ import sys
 import selectors
 import queue
 import json
-import io
 import struct
+from datetime import datetime
 import traceback
 import SMTPClientEncryption
 from threading import Thread
@@ -24,20 +24,28 @@ class Module (Thread):
 
         self.stage = "START"
         self.step = 0
-        self.client_data = open("clientData.txt", "r")
+        #self.client_data = open("clientData.txt", "r")
         self.mode = 0
 
+        self.rcpt = ""
+        self.send = ""
+        self.body_finish = False
+
     def run(self):
+
             try:
                 while True:
+
                     events = self._selector.select(timeout=1)
                     for key, mask in events:
                         message = key.data
                         try:
                             if mask & selectors.EVENT_READ:
-                                self._read()
+                                if self._sock != None:
+                                    self._read()
                             if mask & selectors.EVENT_WRITE and not self._outgoing_buffer.empty():
-                                self._write()
+                                if self._sock != None:
+                                    self._write()
                         except Exception:
                             print(
                                 "main: error: exception for",
@@ -53,7 +61,6 @@ class Module (Thread):
     def _read(self):
         try:
             data = self._sock.recv(4096)
-            print("DATA READ")
         except BlockingIOError:
             # Resource temporarily unavailable (errno EWOULDBLOCK)
             pass
@@ -130,17 +137,23 @@ class Module (Thread):
         finally:
             # Delete reference to socket object for garbage collection
             self._sock = None
+            return self
 
     def setup_info(self,address):
         self._email = address
 
     def accepted_connection(self):
+        lines2 = [""]
+        with open("clientData.txt", "r") as current:
+            lines = current.readlines()
+            lines2 = lines
+            if not lines:
+                print("FILE IS EMPTY")
 
-        data_lines = self.client_data.readlines()
-        print(data_lines[0])
+        #data_lines = self.client_data.readlines()
+        #print(data_lines[0])
         if self.step == 1 and self.stage == "START":
-            m = "HELO " + data_lines[0]
-            print(m)
+            m = "HELO " + lines[0]
             self.create_message(m)
 
         if self.mode == 0:
@@ -149,24 +162,49 @@ class Module (Thread):
             entry = input("> ")
             if entry == "1":
                 self.mode = 1
-                self.accepted_connection()
+                self.compose()
         elif self.mode == 1:
             self.compose()
 
+
     def compose(self):
-        print(self.stage)
-        print(self.step)
-
-
         if self.step == 2 and self.stage == "MAILPROCESS":
-            self.create_message("MAIL email2@otherserver.co.uk")
+            print("Enter the sender address.")
+            self.send = input("> ")
+            self.create_message("MAIL " + self.send)
         if self.step == 3:
-            self.create_message("RCPT email@server.com")
+            print("Enter the recipient address.")
+            self.rcpt = input("> ")
+            self.create_message("RCPT " + self.rcpt)
+
         if self.step == 4:
             self.create_message("DATA Start Data")
+
+
         if self.step == 5:
-            self.create_message("the email message is this")
+            fullmessage = []
+            date = datetime.now()
+            print("Email Subject")
+            subject = input("> ")
+            fullmessage.append(
+                "Time: " + date.strftime('%d/%m/%Y %H:%M:%S') + "\nFrom: " + self.send + "\nTo: " + self.rcpt+ "\nSubject: " +subject + "\n")
+
+            print("\nEnter the body of the email.  To finish, put a single '.' on a new line.")
+
+            while True:
+                enter = input("> ")
+                if enter == '.':
+                    break
+                else:
+                    fullmessage.append(enter + "\n")
+
+            self.create_message(''.join(fullmessage))
             self.create_message(".")
+
         if self.step == 6:
             self.create_message("QUIT byebye")
             print("QUIT")
+            self.close()
+
+
+

@@ -68,6 +68,7 @@ class Module(Thread):
             else:
                 raise RuntimeError("Peer closed.")
 
+
         self._process_response()
 
     def _write(self):
@@ -207,3 +208,4 @@ class Module(Thread):
         finally:
             # Delete reference to socket object for garbage collection
             self._sock = None
+            return Thread
