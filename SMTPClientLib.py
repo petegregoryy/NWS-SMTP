@@ -35,26 +35,26 @@ class Module (Thread):
 
             try:
                 while True:
-
-                    events = self._selector.select(timeout=1)
-                    for key, mask in events:
-                        message = key.data
-                        try:
-                            if mask & selectors.EVENT_READ:
-                                if self._sock != None:
-                                    self._read()
-                            if mask & selectors.EVENT_WRITE and not self._outgoing_buffer.empty():
-                                if self._sock != None:
-                                    self._write()
-                        except Exception:
-                            print(
-                                "main: error: exception for",
-                                f"{self._addr}:\n{traceback.format_exc()}",
-                            )
-                            self._sock.close()
-                    # Check for a socket being monitored to continue.
-                    if not self._selector.get_map():
-                        break
+                    if self._sock != None:
+                        events = self._selector.select(timeout=1)
+                        for key, mask in events:
+                            message = key.data
+                            try:
+                                if mask & selectors.EVENT_READ:
+                                    if self._sock != None:
+                                        self._read()
+                                if mask & selectors.EVENT_WRITE and not self._outgoing_buffer.empty():
+                                    if self._sock != None:
+                                        self._write()
+                            except Exception:
+                                print(
+                                    "main: error: exception for",
+                                    f"{self._addr}:\n{traceback.format_exc()}",
+                                )
+                                self._sock.close()
+                        # Check for a socket being monitored to continue.
+                        if not self._selector.get_map():
+                            break
             finally:
                 self._selector.close()
 
@@ -96,7 +96,7 @@ class Module (Thread):
         message = self._incoming_buffer.get()
         header_length = 3
         if len(message) >= header_length:
-            print(message[0:header_length ], message[header_length :])
+            print(message[0:header_length], message[header_length :])
 
         if message[0:header_length] == "220" and self.stage == "START":
             self.step = 1
@@ -153,7 +153,7 @@ class Module (Thread):
         #data_lines = self.client_data.readlines()
         #print(data_lines[0])
         if self.step == 1 and self.stage == "START":
-            m = "HELO " + lines[0]
+            m = "HELO" + lines[0]
             self.create_message(m)
 
         if self.mode == 0:
@@ -168,14 +168,23 @@ class Module (Thread):
 
 
     def compose(self):
+
+        lines = [""]
+        with open("clientData.txt", "r") as current:
+            lines = current.readlines()
+            if not lines:
+                print("FILE IS EMPTY")
+
         if self.step == 2 and self.stage == "MAILPROCESS":
-            print("Enter the sender address.")
+            print("Enter the sender address. Leave blank to use your inputted address (" + lines[0] + ")")
             self.send = input("> ")
+            if self.send == "":
+                self.send = lines[0]
             self.create_message("MAIL " + self.send)
         if self.step == 3:
             print("Enter the recipient address.")
             self.rcpt = input("> ")
-            self.create_message("RCPT " + self.rcpt)
+            self.create_message("RCPT" + self.rcpt)
 
         if self.step == 4:
             self.create_message("DATA Start Data")

@@ -51,7 +51,6 @@ class NWSThreadedClient ():
 
         self._module = SMTPClientLib.Module(sock, addr)
         self._module.start()
-        print("started THREAD")
 
     def run(self):
         self.start_connection(self._host, self._port)

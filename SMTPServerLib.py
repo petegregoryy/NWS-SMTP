@@ -21,32 +21,36 @@ class Module(Thread):
         events = selectors.EVENT_READ | selectors.EVENT_WRITE
         self._selector.register(self._sock, events, data=None)
 
-        self._data_file = open("serverData.txt","w+")
-        self._helo_result = ""
+        self.data_file = open("serverData.txt","a")
+        self.mail_file = open("mails.txt", "a")
+        self.helo_result = ""
+        self.sender = ""
+        self.rcpt = ""
+        self.mail_message = ""
 
     def run(self):
         try:
             self._create_message("220 OK")
             while True:
-
-                events = self._selector.select(timeout=None)
-                for key, mask in events:
-                    try:
-                        if mask & selectors.EVENT_READ:
+                if self._sock != None:
+                    events = self._selector.select(timeout=None)
+                    for key, mask in events:
+                        try:
+                            if mask & selectors.EVENT_READ:
+                                if self._sock != None:
+                                    self._read()
+                            if mask & selectors.EVENT_WRITE and not self._outgoing_buffer.empty():
+                                if self._sock != None:
+                                    self._write()
+                        except Exception:
+                            print(
+                                "main: error: exception for",
+                                f"{self._addr}:\n{traceback.format_exc()}",
+                            )
                             if self._sock != None:
-                                self._read()
-                        if mask & selectors.EVENT_WRITE and not self._outgoing_buffer.empty():
-                            if self._sock != None:
-                                self._write()
-                    except Exception:
-                        print(
-                            "main: error: exception for",
-                            f"{self._addr}:\n{traceback.format_exc()}",
-                        )
-                        if self._sock != None:
-                            self._sock.close()
-                if not self._selector.get_map():
-                    break
+                                self._sock.close()
+                    if not self._selector.get_map():
+                        break
         except KeyboardInterrupt:
             print("caught keyboard interrupt, exiting")
         finally:
@@ -132,12 +136,16 @@ class Module(Thread):
         if data_input:
             if command == ".":
                 print("CLEARCLEAR")
+                mail_file = open("mails.txt", "a")
+                mail_file.write("[\n" +self.rcpt + "|" + self.mail_message + "\n")
                 self._create_message("250 OK")
                 self.state = "CLEANING"
                 data_input = False
                 crlf_received = True
             else:
+
                 line = command+message
+                self.mail_message = message
                 print(line)
                 data_input = True
                 crlf_received = False
@@ -157,17 +165,28 @@ class Module(Thread):
             elif command == "HELO":
                 self._create_message(f"250 Hello: {message}")
                 print("Received a HELO")
-
+                f = open("serverData.txt","a")
+                f_read = open("serverData.txt","r")
+                dupe = False
+                addr = self._addr
                 if message != "":
-                    self._data_file.write(message)
-                    print("wrote to file ",message)
+                    for line in f_read.readlines():
+                        if line == message + "|" + str(addr):
+                            dupe = True
+                    if not dupe:
+                        f.write(message + "|")
+                        f.write(str(addr))
+                        f.write("\n")
+                        print("wrote to file ",message, addr)
                 if self.state == "START":
                     self.state = "MAILPROCESS"
             elif command == "MAIL":
                 self._create_message(f"250 Mail from: {message}")
+                self.sender = message
                 print("Received a MAIL FROM")
             elif command == "RCPT":
                 self._create_message(f"250 Recipient: {message}")
+                self.rcpt = message
                 print("Received a RCPT TO")
             elif command == "VRFY":
                 self._create_message(f"250 Verify: {message}")
@@ -176,7 +195,8 @@ class Module(Thread):
                 self._create_message(f"250 Expand: {message}")
                 print("Received a EXPN")
             elif command == "RSET":
-                self._create_message(f"250 Reset: {message}")
+                self._create_message(f"250 Reset")
+                self.state = "START"
                 print("Received a RSET")
             elif command == "QUIT":
                 self._create_message(f"221 Quit: {message}")
