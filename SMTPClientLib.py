@@ -158,17 +158,14 @@ class Module (Thread):
 
         #data_lines = self.client_data.readlines()
         #print(data_lines[0])
-
+        if not self.helo_sent :
+            m = "HELO" + lines[0]
+            self.create_message(m)
+            self.last_command = "HELO"
+            self.helo_sent = True
 
         if self.mode == 0:
             self.last_command = ""
-
-            if not self.helo_sent:
-                m = "HELO" + lines[0]
-                self.create_message(m)
-                self.last_command = "HELO"
-                self.helo_sent = True
-
             print("What would you like to do? \n [1] Compose email \n")
 
             entry = input("> ")
