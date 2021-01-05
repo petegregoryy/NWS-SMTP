@@ -55,8 +55,16 @@ class nws_encryption:
             message = str(message)
         except TypeError:
             return ""
-
-        # perform caesar cipher here
+        shift = self._caesarkey
+        cipher = ''
+        for char in message:
+            if char == ' ':
+                cipher = cipher + char
+            elif char.isupper():
+                cipher = cipher + chr((ord(char) + shift))
+            else:
+                cipher = cipher + chr((ord(char) + shift))
+        return cipher
 
     def _vigenere_square_encrypt(self, message) -> str:
         try:
@@ -72,7 +80,18 @@ class nws_encryption:
         except TypeError:
             return ""
 
-        # perform caesar cipher here
+        shift = self._caesarkey
+        #cipher = message[0:3]
+        #message = message[3:]
+        cipher = ''
+        for char in message:
+            if char == ' ':
+                cipher = cipher + char
+            elif char.isupper():
+                cipher = cipher + chr((ord(char) - shift))
+            else:
+                cipher = cipher + chr((ord(char) - shift))
+        return cipher
 
     def _vigenere_square_decrypt(self, message) -> str:
         try:

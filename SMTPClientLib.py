@@ -21,7 +21,9 @@ class Module (Thread):
         self.encryption = SMTPClientEncryption.nws_encryption()
         events = selectors.EVENT_READ | selectors.EVENT_WRITE
         self._selector.register(self._sock, events, data=None)
-
+        self.encryption.toggle_enable()
+        self.encryption.set_method("caesar")
+        self.encryption.set_caesar_key("8")
         self.stage = "START"
         self.step = 0
         self.client_data = open("clientData.txt", "r")
@@ -65,6 +67,9 @@ class Module (Thread):
         except BlockingIOError:
             # Resource temporarily unavailable (errno EWOULDBLOCK)
             pass
+        except ConnectionResetError:
+            print("Connection closed.")
+            self.close()
         else:
             if data:
                 self._incoming_buffer.put(self.encryption.decrypt(data.decode()))
@@ -118,7 +123,7 @@ class Module (Thread):
             self.stage = "DATASTATE"
         elif message[0:header_length] == "250" and self.step == 5 and self.stage == "DATASTATE":
             self.step = 6
-            self.mode = 0
+            self.accepted_connection()
         elif message[0:header_length] == "221" and self.step == 6:
             self.step = 7
 
@@ -166,19 +171,18 @@ class Module (Thread):
 
         if self.mode == 0:
             self.last_command = ""
-            print("What would you like to do? \n [1] Compose email \n")
+            print("What would you like to do? \n [1] Compose email and receive mailbox \n [q] Disconnect")
 
             entry = input("> ")
             if entry == "1":
                 self.mode = 1
                 self.compose()
-            elif entry == "2":
+            if entry == "q":
                 self.mode = 2
-                self.mailbox()
+                self.step = 6
+                self.compose()
         elif self.mode == 1:
             self.compose()
-        elif self.mode == 2:
-            self.mailbox()
 
 
     def compose(self):
@@ -228,17 +232,8 @@ class Module (Thread):
             self.create_message(".")
 
         if self.step == 6:
-            self.create_message("QUIT byebye")
+            self.create_message("QUIT")
             print("QUIT")
-            self.close()
 
-    def mailbox(self):
-        lines = []
-        with open("clientData.txt", "r") as current:
-            lines = current.readlines()
-            if not lines:
-                print("FILE IS EMPTY")
-        self.create_message("MBOX"+lines[0])
-        self.last_command = "MBOX"
 
 
