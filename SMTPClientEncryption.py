@@ -71,7 +71,8 @@ class nws_encryption:
             message = str(message)
         except TypeError:
             return ""
-
+        print("vigenere square encryption not supported")
+        return message
         # perform vigenere square here
 
     def _caesar_cipher_decrypt(self, message) -> str:
@@ -98,7 +99,8 @@ class nws_encryption:
             message = str(message)
         except TypeError:
             return ""
-
+        print("vigenere square encryption not supported")
+        return message
         # perform vigenere square here
 
 
