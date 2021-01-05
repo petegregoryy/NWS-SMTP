@@ -24,12 +24,13 @@ class Module (Thread):
 
         self.stage = "START"
         self.step = 0
-        #self.client_data = open("clientData.txt", "r")
+        self.client_data = open("clientData.txt", "r")
         self.mode = 0
-
+        self.last_command = ""
         self.rcpt = ""
         self.send = ""
         self.body_finish = False
+        self.helo_sent = False
 
     def run(self):
 
@@ -98,6 +99,10 @@ class Module (Thread):
         if len(message) >= header_length:
             print(message[0:header_length], message[header_length :])
 
+        if self.last_command == "MBOX":
+            self.mode = 0
+            self.last_command = ""
+
         if message[0:header_length] == "220" and self.stage == "START":
             self.step = 1
             print("received 220")
@@ -113,6 +118,7 @@ class Module (Thread):
             self.stage = "DATASTATE"
         elif message[0:header_length] == "250" and self.step == 5 and self.stage == "DATASTATE":
             self.step = 6
+            self.mode = 0
         elif message[0:header_length] == "221" and self.step == 6:
             self.step = 7
 
@@ -152,19 +158,30 @@ class Module (Thread):
 
         #data_lines = self.client_data.readlines()
         #print(data_lines[0])
-        if self.step == 1 and self.stage == "START":
-            m = "HELO" + lines[0]
-            self.create_message(m)
+
 
         if self.mode == 0:
+            self.last_command = ""
+
+            if not self.helo_sent:
+                m = "HELO" + lines[0]
+                self.create_message(m)
+                self.last_command = "HELO"
+                self.helo_sent = True
+
             print("What would you like to do? \n [1] Compose email \n")
 
             entry = input("> ")
             if entry == "1":
                 self.mode = 1
                 self.compose()
+            elif entry == "2":
+                self.mode = 2
+                self.mailbox()
         elif self.mode == 1:
             self.compose()
+        elif self.mode == 2:
+            self.mailbox()
 
 
     def compose(self):
@@ -180,14 +197,17 @@ class Module (Thread):
             self.send = input("> ")
             if self.send == "":
                 self.send = lines[0]
-            self.create_message("MAIL " + self.send)
+            self.create_message("MAIL" + self.send)
+            self.last_command = "MAIL"
         if self.step == 3:
             print("Enter the recipient address.")
             self.rcpt = input("> ")
             self.create_message("RCPT" + self.rcpt)
+            self.last_command = "RCPT"
 
         if self.step == 4:
             self.create_message("DATA Start Data")
+            self.last_command = "DATA"
 
 
         if self.step == 5:
@@ -196,7 +216,7 @@ class Module (Thread):
             print("Email Subject")
             subject = input("> ")
             fullmessage.append(
-                "Time: " + date.strftime('%d/%m/%Y %H:%M:%S') + "\nFrom: " + self.send + "\nTo: " + self.rcpt+ "\nSubject: " +subject + "\n")
+                "Time: " + date.strftime('%d/%m/%Y %H:%M:%S') + "|From: " + self.send + "|To: " + self.rcpt+ "|Subject: " +subject + "||")
 
             print("\nEnter the body of the email.  To finish, put a single '.' on a new line.")
 
@@ -205,7 +225,7 @@ class Module (Thread):
                 if enter == '.':
                     break
                 else:
-                    fullmessage.append(enter + "\n")
+                    fullmessage.append(enter + "|")
 
             self.create_message(''.join(fullmessage))
             self.create_message(".")
@@ -215,5 +235,13 @@ class Module (Thread):
             print("QUIT")
             self.close()
 
+    def mailbox(self):
+        lines = []
+        with open("clientData.txt", "r") as current:
+            lines = current.readlines()
+            if not lines:
+                print("FILE IS EMPTY")
+        self.create_message("MBOX"+lines[0])
+        self.last_command = "MBOX"
 
 

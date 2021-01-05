@@ -71,8 +71,6 @@ class Module(Thread):
                 self._incoming_buffer.put(self.encryption.decrypt(data.decode()))
             else:
                 raise RuntimeError("Peer closed.")
-
-
         self._process_response()
 
     def _write(self):
@@ -112,11 +110,13 @@ class Module(Thread):
         print(message)
         if self.state == "START":
             if command != "NOOP" and command != "HELO" and command != "HELP" and command != "QUIT":
+                print("Start bad sequence")
                 self._create_message("503 Bad Sequence")
             else:
                 valid = True
         elif self.state == "MAILPROCESS":
-            if command != "NOOP" and command != "RSET" and command != "HELP" and command != "QUIT" and command != "MAIL"  and command != "RCPT" and command != "DATA":
+            if command != "NOOP" and command != "RSET" and command != "MBOX" and command != "QUIT" and command != "MAIL" and command != "RCPT" and command != "DATA":
+                print("mailproc bad sequence")
                 self._create_message("503 Bad Sequence")
             else:
                 valid = True
@@ -128,6 +128,7 @@ class Module(Thread):
 
         if self.state == "CLEANING":
             if command != "QUIT":
+                print("cleaning bad sequence")
                 valid = False
                 self._create_message("503 Bad Sequence")
             else:
@@ -136,8 +137,10 @@ class Module(Thread):
         if data_input:
             if command == ".":
                 print("CLEARCLEAR")
-                mail_file = open("mails.txt", "a")
-                mail_file.write("[\n" +self.rcpt + "|" + self.mail_message + "\n")
+                mailbox_file = open((self.rcpt + "-mailbox.txt"), "a")
+                mail_file = open("mailboxes.txt" , "a")
+                mail_file.writelines(self.rcpt)
+                mailbox_file.write("{" + self.mail_message + "}\n")
                 self._create_message("250 OK")
                 self.state = "CLEANING"
                 data_input = False
@@ -145,7 +148,7 @@ class Module(Thread):
             else:
 
                 line = command+message
-                self.mail_message = message
+                self.mail_message = line
                 print(line)
                 data_input = True
                 crlf_received = False
@@ -162,9 +165,11 @@ class Module(Thread):
                 print("Received a DATA")
                 if self.state == "MAILPROCESS":
                     self.state = "DATASTATE"
+
             elif command == "HELO":
                 self._create_message(f"250 Hello: {message}")
                 print("Received a HELO")
+                self.helo_result = message
                 f = open("serverData.txt","a")
                 f_read = open("serverData.txt","r")
                 dupe = False
@@ -180,6 +185,24 @@ class Module(Thread):
                         print("wrote to file ",message, addr)
                 if self.state == "START":
                     self.state = "MAILPROCESS"
+
+            elif command == "MBOX":
+                self.state = "START"
+                try:
+                    file = open(message + "-mailbox.txt")
+                    lines_together = []
+                    #self._create_message("250 OK")
+                    lines = file.readlines()
+                    for line in lines:
+                        split = line.split('|')
+                        newline_line = '\n'.join(split)
+                        lines_together.append(newline_line)
+                    self._create_message("250 OK: "+'\n'.join(lines_together))
+                except(FileNotFoundError):
+                    self._create_message("510 No " + message + "-mailbox.txt Mailbox Found - No mail received on this server")
+
+                print("Received a MBOX")
+
             elif command == "MAIL":
                 self._create_message(f"250 Mail from: {message}")
                 self.sender = message
