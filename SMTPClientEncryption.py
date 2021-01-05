@@ -55,13 +55,16 @@ class nws_encryption:
             message = str(message)
         except TypeError:
             return ""
+
+        # Set shift to the key provided
         shift = self._caesarkey
         cipher = ''
+
         for char in message:
+            # If character is blank, add to cipher as blank
             if char == ' ':
                 cipher = cipher + char
-            elif char.isupper():
-                cipher = cipher + chr((ord(char) + shift))
+            # Take shift value from ascii code of letter.
             else:
                 cipher = cipher + chr((ord(char) + shift))
         return cipher
@@ -80,16 +83,15 @@ class nws_encryption:
             message = str(message)
         except TypeError:
             return ""
-
+        # Set shift to the key provided
         shift = self._caesarkey
-        #cipher = message[0:3]
-        #message = message[3:]
         cipher = ''
+
         for char in message:
+            # If character is blank, add to cipher as blank
             if char == ' ':
                 cipher = cipher + char
-            elif char.isupper():
-                cipher = cipher + chr((ord(char) - shift))
+            # Take shift value from ascii code of letter.
             else:
                 cipher = cipher + chr((ord(char) - shift))
         return cipher

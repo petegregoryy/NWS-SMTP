@@ -22,9 +22,11 @@ class NWSThreadedClient ():
         self._module = None
         self.needs_setup = False
 
+        #Check for setup file, if not found run setup
         try:
             f = open("clientData.txt","r")
 
+            #If file exists but is blank, still run setup
             if f.readlines() == "":
                 self.needs_setup = True
                 f.close()
@@ -34,8 +36,7 @@ class NWSThreadedClient ():
             self.needs_setup = True
             f.close()
 
-
-
+        #Setup for storing user's default mail address.
         if self.needs_setup:
             f = open("clientData.txt", "w+")
             mail = input("Enter your mail address: ")
